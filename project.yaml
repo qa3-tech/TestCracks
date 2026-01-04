@@ -1,0 +1,40 @@
+project:
+  name: testcracks
+  language: c
+  standard: c99
+
+compiler:
+  flags:
+    - "-Wall"
+    - "-Wextra"
+    - "-pedantic"
+    - "-g"
+  defines: []
+  compiler_path: gcc
+
+source_groups:
+  - name: library
+    source_dirs:
+      - "src/"
+    include_dirs:
+      - "include/"
+    flags: []
+    defines: []
+
+  - name: examples
+    source_dirs:
+      - "examples/"
+    include_dirs:
+      - "include/"
+    flags: []
+    defines: []
+
+dependencies:
+  external_includes: []
+
+build:
+  output_dir: "build/"
+  exclude_patterns:
+    - "build/"
+    - "*.o"
+    - ".git/"

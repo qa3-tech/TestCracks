@@ -1,0 +1,397 @@
+:source-highlighter: highlight.js
+:nofooter:
+
+= TestCracks
+
+Minimal C testing framework using Railway-Oriented Programming.
+
+*Find the cracks in your code.*
+
+toc::[]
+
+== Philosophy
+
+* *Pure Functions*: Tests are functions that return results, not side effects
+* *Explicit Error Flow*: Errors are values, not exceptions or aborts
+* *Composability*: Tests compose using `tc_combine` — accumulate or short-circuit
+* *No Magic*: Setup/teardown is explicit data flow, not hidden framework behavior
+* *Minimal*: Two files (~1000 LOC total), zero dependencies
+
+== Features
+
+* Two-file library — drop `testcracks.h` and `testcracks.c` into your project
+* Structured errors with expected/actual values
+* Error accumulation (`tc_combine`) or short-circuit (early return)
+* Suite-level setup/teardown with typed environments
+* Skip directives (`tc_skip_if`, `tc_skip_unless`, `tc_skip_test`)
+* JUnit XML output for CI integration
+* CLI filtering (`--suite`, `--test`, `--match`)
+* ANSI colored output (optional)
+* Cross-platform: Linux, macOS, BSD, Windows (MSVC, MinGW), embedded
+
+== Compatibility
+
+[cols="1,1"]
+|===
+|Requirement |Minimum
+
+|C Standard |C99
+|C++ Standard |Any (has `extern "C"` guards)
+|===
+
+[cols="1,1"]
+|===
+|Platform |Status
+
+|Linux (GCC, Clang) |✓ Full
+|macOS (Clang) |✓ Full
+|BSD |✓ Full
+|Windows MSVC |✓ Full
+|Windows MinGW |✓ Full
+|Embedded |✓ Full
+|===
+
+== Quick Start
+
+=== 1. Add to Project
+
+Copy `testcracks.h` and `testcracks.c` into your project.
+
+=== 2. Create Test File
+
+[source,c]
+----
+#include "testcracks.h"
+
+TestResult test_addition(void* env) {
+    (void)env;
+    return tc_assert_equal_int(4, 2 + 2, "should add");
+}
+
+TestResult test_validation(void* env) {
+    (void)env;
+    TestResult r = tc_assert_true(5 > 0, "positive");
+    r = tc_combine(r, tc_assert_true(5 < 10, "less than 10"));
+    return r;  /* both errors reported if both fail */
+}
+
+int main(int argc, char** argv) {
+    Suite math = tc_suite("Math", (Test[]){
+        {"addition", test_addition},
+        {"validation", test_validation},
+        {0}
+    });
+
+    Suite* all[] = {&math, NULL};
+    return tc_main(argc, argv, all);
+}
+----
+
+=== 3. Build and Run
+
+[source,bash]
+----
+# Linux/macOS
+gcc -std=c99 -o tests my_tests.c testcracks.c -lm
+./tests
+
+# Windows MSVC
+cl /W4 my_tests.c testcracks.c
+my_tests.exe
+----
+
+== CLI Options
+
+----
+Usage: ./tests [options]
+
+Options:
+  --help                  Show help
+  --list                  List all tests
+  --suite "name"          Run specific suite
+  --test "suite" "test"   Run specific test
+  --match "pattern"       Run tests matching pattern
+  --xml "file"            Output results as JUnit XML
+----
+
+=== Examples
+
+[source,bash]
+----
+./tests                              # Run all tests
+./tests --suite "Math"               # Run one suite
+./tests --test "Math" "addition"     # Run one test
+./tests --match "valid"              # Run matching tests
+./tests --xml results.xml            # JUnit XML for CI
+./tests --list                       # List all tests
+----
+
+== API Reference
+
+=== Result Constructors
+
+[source,c]
+----
+TestResult tc_pass(void);
+TestResult tc_fail(const char* msg);
+TestResult tc_fail_with(const char* msg, const char* expected, const char* actual);
+TestResult tc_skip(const char* reason);
+----
+
+=== Result Predicates
+
+[source,c]
+----
+int tc_is_pass(TestResult r);
+int tc_is_fail(TestResult r);
+int tc_is_skip(TestResult r);
+----
+
+=== Composition
+
+[source,c]
+----
+TestResult tc_combine(TestResult a, TestResult b);  /* accumulates errors */
+----
+
+=== Skip Guards
+
+[source,c]
+----
+TestResult tc_skip_if(int cond, const char* reason);
+TestResult tc_skip_unless(int cond, const char* reason);
+----
+
+=== Assertions
+
+==== Boolean
+
+[source,c]
+----
+tc_assert_true(cond, msg)
+tc_assert_false(cond, msg)
+----
+
+==== Equality (by type)
+
+[source,c]
+----
+tc_assert_equal_int(expected, actual, msg)
+tc_assert_equal_long(expected, actual, msg)
+tc_assert_equal_size(expected, actual, msg)
+tc_assert_equal_double(expected, actual, msg)
+tc_assert_equal_str(expected, actual, msg)
+tc_assert_equal_ptr(expected, actual, msg)
+
+tc_assert_not_equal_int(unexpected, actual, msg)
+/* ... same pattern for other types */
+----
+
+==== Nil/NULL
+
+[source,c]
+----
+tc_assert_nil(ptr, msg)
+tc_assert_not_nil(ptr, msg)
+----
+
+==== Numeric Comparisons
+
+[source,c]
+----
+tc_assert_greater_int(actual, than, msg)
+tc_assert_greater_or_equal_int(actual, than, msg)
+tc_assert_less_int(actual, than, msg)
+tc_assert_less_or_equal_int(actual, than, msg)
+
+tc_assert_greater_double(actual, than, msg)
+/* ... same pattern */
+
+tc_assert_in_delta(expected, actual, delta, msg)
+----
+
+==== Collections (int arrays)
+
+[source,c]
+----
+tc_assert_empty_int(arr, len, msg)
+tc_assert_not_empty_int(arr, len, msg)
+tc_assert_len(expected, actual, msg)
+tc_assert_contains_int(elem, arr, len, msg)
+tc_assert_not_contains_int(elem, arr, len, msg)
+----
+
+=== Suite Construction
+
+[source,c]
+----
+Suite tc_suite(const char* name, Test* tests);
+Suite tc_suite_with(const char* name, SetupFn setup, TeardownFn teardown, Test* tests);
+Test tc_skip_test(const char* name, const char* reason);
+----
+
+=== Runners
+
+[source,c]
+----
+int tc_main(int argc, char** argv, Suite** suites);  /* CLI entry point */
+RunSummary tc_run_all(Suite** suites);
+RunSummary tc_run_suite(Suite* suite);
+int tc_write_junit_xml(const char* filename, Suite** suites, RunSummary summary);
+----
+
+== Patterns
+
+=== Accumulate All Errors
+
+[source,c]
+----
+TestResult test_validate(void* env) {
+    (void)env;
+    TestResult r = tc_assert_true(x > 0, "positive");
+    r = tc_combine(r, tc_assert_true(x < 100, "under 100"));
+    r = tc_combine(r, tc_assert_true(x % 2 == 0, "even"));
+    return r;  /* reports ALL failures */
+}
+----
+
+=== Short-Circuit on First Failure
+
+[source,c]
+----
+TestResult test_dependent(void* env) {
+    (void)env;
+    TestResult r = tc_assert_not_nil(ptr, "not null");
+    if (tc_is_fail(r)) return r;
+
+    /* only runs if ptr is valid */
+    return tc_assert_equal_int(42, ptr->value, "correct value");
+}
+----
+
+=== Setup/Teardown
+
+[source,c]
+----
+typedef struct {
+    Connection* conn;
+} DbEnv;
+
+static DbEnv db_env;
+
+int db_setup(void** env) {
+    db_env.conn = open_db();
+    *env = &db_env;
+    return db_env.conn ? 0 : -1;
+}
+
+void db_teardown(void* env) {
+    DbEnv* e = (DbEnv*)env;
+    close_db(e->conn);
+}
+
+TestResult test_query(void* env) {
+    DbEnv* e = (DbEnv*)env;
+    int result = query(e->conn, "SELECT 1");
+    return tc_assert_equal_int(1, result, "query works");
+}
+
+Suite db_suite = tc_suite_with("Database",
+    db_setup, db_teardown,
+    (Test[]){
+        {"can query", test_query},
+        {0}
+    }
+);
+----
+
+=== Conditional Skip
+
+[source,c]
+----
+TestResult test_linux_only(void* env) {
+    (void)env;
+#ifdef __linux__
+    int is_linux = 1;
+#else
+    int is_linux = 0;
+#endif
+    TestResult r = tc_skip_unless(is_linux, "Linux only");
+    if (tc_is_skip(r)) return r;
+
+    return tc_assert_true(1, "linux test logic");
+}
+----
+
+=== Skip a Test Entirely
+
+[source,c]
+----
+Suite my_suite = tc_suite("Features", (Test[]){
+    {"working test", test_working},
+    tc_skip_test("not ready", "waiting for API v2"),
+    {0}
+});
+----
+
+== Configuration
+
+Define before including `testcracks.h`:
+
+[cols="1,2"]
+|===
+|Define |Effect
+
+|`TC_NO_GETTIMEOFDAY` |Use `clock()` for timing (auto-set on MSVC)
+|`TC_NO_COLORS` |Disable ANSI color output
+|`TC_MAX_ERRORS` |Max errors per test (default: 50)
+|`TC_MAX_MSG_LEN` |Max message length (default: 512)
+|`TC_MAX_TESTS_PER_SUITE` |Max tests per suite (default: 256)
+|`TC_MAX_SUITES` |Max suites (default: 64)
+|===
+
+== Comparison with Other Frameworks
+
+[cols="1,1,1,1,1"]
+|===
+|Aspect |TestCracks |Unity |Check |Google Test
+
+|Language |C99 |C |C |C++
+|Size |~1000 LOC |~3000 LOC |~5000+ LOC |~30000+ LOC
+|Build |2 files |3 files |Library |Library
+|Assertion style |Functions |Macros |Macros |Macros
+|Error accumulation |Built-in |No |No |`EXPECT_*` only
+|JUnit XML |Yes |External |External |Yes
+|Mocking |User-defined |CMock |No |Google Mock
+|===
+
+== Output Example
+
+----
+=== Math Tests ===
+  ✓ addition (0.01ms)
+  ✓ validation (0.02ms)
+  (0.05ms)
+
+=== Skip Tests ===
+  ○ linux only (0.00ms)
+      [Linux only]
+  ✓ other test (0.01ms)
+  (0.03ms)
+
+=== Failing Tests ===
+  ✗ bad math (0.01ms)
+      should equal 4
+        Expected: 4
+        Actual:   5
+  (0.02ms)
+
+5/6 passed, 1 failed, 1 skipped (0.15ms)
+----
+
+== Related Projects
+
+* https://github.com/qa3-tech/TestTracks[TestTracks] — The original F# framework that inspired TestCracks
+
+
+_Yes, the name is intentional. TestTracks → TestCracks. We're not winning any awards for creativity here, but at least you'll remember it._
