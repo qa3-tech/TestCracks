@@ -2,7 +2,7 @@ NAME     := testcracks
 VERSION  ?= 0.0.0
 
 CC       := gcc
-CFLAGS   := -std=c99 -Wall -Wextra -pedantic -g
+CFLAGS   := -std=c99 -Wall -Wextra -pedantic -Wno-missing-field-initializers -g
 LDFLAGS  := -lm
 
 SRC_DIR  := src

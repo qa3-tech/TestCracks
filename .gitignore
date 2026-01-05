@@ -1,3 +1,4 @@
 build
 .cache
 generate_compile_commands*
+testcracks-*
