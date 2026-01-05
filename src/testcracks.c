@@ -582,7 +582,7 @@ static int tc__result_counts[TC_MAX_SUITES];
 
 static RunSummary tc__run_suite_ex(Suite *suite, int suite_idx) {
   RunSummary summary;
-  TestResult results[TC_MAX_TESTS_PER_SUITE];
+  int idx = (suite_idx >= 0 && suite_idx < TC_MAX_SUITES) ? suite_idx : 0;
   double start;
   int i;
   void *env = NULL;
@@ -603,14 +603,10 @@ static RunSummary tc__run_suite_ex(Suite *suite, int suite_idx) {
   }
 
   for (i = 0; i < suite->test_count; i++) {
-    results[i] = tc_run_test(&suite->tests[i], env);
+    tc__results[idx][i] = tc_run_test(&suite->tests[i], env);
+    tc__result_counts[idx] = i + 1;
 
-    if (suite_idx >= 0 && suite_idx < TC_MAX_SUITES) {
-      tc__results[suite_idx][i] = results[i];
-      tc__result_counts[suite_idx] = i + 1;
-    }
-
-    switch (results[i].tag) {
+    switch (tc__results[idx][i].tag) {
     case TC_PASS:
       summary.passed++;
       break;
@@ -631,7 +627,7 @@ static RunSummary tc__run_suite_ex(Suite *suite, int suite_idx) {
 
   printf("\n=== %s (%.2fms) ===\n", suite->name, summary.total_ms);
   for (i = 0; i < suite->test_count; i++) {
-    tc_print_result(suite->tests[i].name, &results[i]);
+    tc_print_result(suite->tests[i].name, &tc__results[idx][i]);
   }
 
   return summary;

@@ -16,7 +16,7 @@ EXAMPLES := $(wildcard $(EX_DIR)/*.c)
 BINS     := $(EXAMPLES:$(EX_DIR)/%.c=$(BUILD)/%)
 
 DIST_NAME := $(NAME)-$(VERSION)
-DIST_FILES := $(INC_DIR) $(SRC_DIR) $(EX_DIR) Makefile README.adoc LICENSE
+DIST_FILES := $(INC_DIR) $(SRC_DIR) $(EX_DIR) LICENSE
 
 .PHONY: all clean test dist
 
